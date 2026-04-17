@@ -1,0 +1,134 @@
+'use client'
+import Link from 'next/link'
+import { useState } from 'react'
+import { useLanguage } from '@/components/ClientLayout'
+import { useAuth } from '@/contexts/AuthContext'
+import { useCart } from '@/contexts/CartContext'
+import { translations } from '@/lib/translations'
+import LanguageSwitcher from './LanguageSwitcher'
+import ClientOnly from './ClientOnly'
+
+const MARQUEE_TEXT = [
+  'Kostenloser Versand ab 50 €',
+  'Neue Kollektion jetzt verfügbar',
+  'Print on Demand — Ihr Design, unsere Qualität',
+  'Kostenlose Rückgabe innerhalb von 30 Tagen',
+  'Free shipping over €50',
+  'New collection now available',
+]
+
+export default function Navbar() {
+  const { lang } = useLanguage()
+  const { user, logout } = useAuth()
+  const { totalItems } = useCart()
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const t = translations[lang]
+
+  const marqueeItems = [...MARQUEE_TEXT, ...MARQUEE_TEXT]
+
+  return (
+    <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
+      {/* Announcement bar */}
+      <div className="bg-gray-900 text-white text-xs py-2 overflow-hidden">
+        <div className="animate-marquee">
+          {marqueeItems.map((text, i) => (
+            <span key={i} className="px-10 whitespace-nowrap">
+              {text}
+              <span className="mx-8 opacity-40">·</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Main nav */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-14">
+
+          {/* Left — nav links */}
+          <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-gray-700">
+            <Link href="/products" className="hover:text-black transition-colors">Shop</Link>
+            <Link href="/print-on-demand" className="hover:text-black transition-colors">Print on Demand</Link>
+            <Link href="/about" className="hover:text-black transition-colors">Über uns</Link>
+          </nav>
+
+          {/* Center — logo */}
+          <Link href="/" className="absolute left-1/2 -translate-x-1/2 text-xl font-bold tracking-tight text-gray-900 hover:text-gray-600 transition-colors">
+            ATTIREBURG
+          </Link>
+
+          {/* Right — icons */}
+          <div className="flex items-center gap-4 ml-auto">
+            <LanguageSwitcher />
+
+            <Link href="/search" className="text-gray-700 hover:text-black transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </Link>
+
+            {user && (
+              <Link href="/account/wishlist" className="text-gray-700 hover:text-black transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </Link>
+            )}
+
+            <Link href="/cart" className="relative text-gray-700 hover:text-black transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              <ClientOnly>
+                {totalItems > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-gray-900 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                    {totalItems}
+                  </span>
+                )}
+              </ClientOnly>
+            </Link>
+
+            <div className="relative">
+              {user ? (
+                <>
+                  <button onClick={() => setShowUserMenu(!showUserMenu)} className="text-gray-700 hover:text-black transition-colors">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </button>
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 shadow-lg rounded text-sm z-50">
+                      <Link href="/account" className="block px-4 py-2.5 text-gray-700 hover:bg-gray-50" onClick={() => setShowUserMenu(false)}>Konto</Link>
+                      <Link href="/account/orders" className="block px-4 py-2.5 text-gray-700 hover:bg-gray-50" onClick={() => setShowUserMenu(false)}>Bestellungen</Link>
+                      {user.isAdmin && <Link href="/admin" className="block px-4 py-2.5 text-gray-700 hover:bg-gray-50" onClick={() => setShowUserMenu(false)}>Admin</Link>}
+                      <button onClick={() => { logout(); setShowUserMenu(false) }} className="w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-50 border-t border-gray-100">Abmelden</button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Link href="/login" className="text-sm font-medium text-gray-700 hover:text-black transition-colors">{t.nav.login}</Link>
+              )}
+            </div>
+
+            {/* Mobile hamburger */}
+            <button className="md:hidden text-gray-700" onClick={() => setMobileOpen(!mobileOpen)}>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={mobileOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'} />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile menu */}
+      {mobileOpen && (
+        <div className="md:hidden border-t border-gray-100 bg-white px-4 py-4 space-y-3 text-sm font-medium text-gray-700">
+          <Link href="/products" className="block py-1" onClick={() => setMobileOpen(false)}>Shop</Link>
+          <Link href="/print-on-demand" className="block py-1" onClick={() => setMobileOpen(false)}>Print on Demand</Link>
+          <Link href="/about" className="block py-1" onClick={() => setMobileOpen(false)}>Über uns</Link>
+          <Link href="/contact" className="block py-1" onClick={() => setMobileOpen(false)}>Kontakt</Link>
+        </div>
+      )}
+    </header>
+  )
+}
