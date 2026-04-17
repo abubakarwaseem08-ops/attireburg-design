@@ -1,0 +1,292 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  nameEn      String
+  description String   @db.Text
+  descriptionEn String @db.Text
+  price       Float
+  currency    String   @default("EUR")
+  images      String[]
+  category    String
+  sizes       String[]
+  colors      String[]
+  stock       Int      @default(0)
+  featured    Boolean  @default(false)
+  onSale      Boolean  @default(false)
+  salePrice   Float?
+  sku         String?  @unique
+  weight      Float?
+  tags        String[]
+  metaTitle   String?
+  metaDescription String?
+  isActive    Boolean  @default(true)
+  // New fields for variant support
+  hasVariants Boolean  @default(false)
+  attributes  Json?    // Store product attributes as JSON
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orderItems  OrderItem[]
+  reviews     Review[]
+  cartItems   CartItem[]
+  variants    ProductVariant[]
+  wishlist    Wishlist[]
+  waitlistSubscriptions WaitlistSubscription[]
+  restockSchedules RestockSchedule[]
+
+  @@index([category])
+  @@index([featured])
+  @@index([isActive])
+  @@index([onSale])
+}
+
+model ProductVariant {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku         String   @unique
+  price       Float?   // Override parent price if different
+  salePrice   Float?   // Override parent sale price if different
+  stock       Int      @default(0)
+  images      String[] // Variant-specific images
+  attributes  Json     // Store variant attributes (e.g., {"color": "red", "size": "L"})
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  waitlistSubscriptions WaitlistSubscription[]
+  restockSchedules RestockSchedule[]
+
+  @@index([productId])
+  @@index([sku])
+  @@index([isActive])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  firstName String?
+  lastName  String?
+  password  String
+  phone     String?
+  address   String?
+  city      String?
+  postalCode String?
+  country   String   @default("Germany")
+  isAdmin   Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  lastLogin DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+  wishlist  Wishlist[]
+  reviews   Review[]
+  cart      Cart?
+  waitlistSubscriptions WaitlistSubscription[]
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  status          OrderStatus @default(PENDING)
+  totalAmount     Float
+  currency        String      @default("EUR")
+  paypalOrderId   String?
+  paypalPayerId   String?
+  shippingAddress String
+  shippingCity    String
+  shippingPostal  String
+  // Backorder system fields
+  orderType       String      @default("standard") // "standard", "backorder", "preorder"
+  expectedFulfillmentDate DateTime?
+  backorderPriority Int?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  items           OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([orderType])
+  @@index([expectedFulfillmentDate])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  variantId String? // Optional variant reference
+  quantity  Int
+  size      String
+  color     String?
+  price     Float
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([variantId])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  variantId String? // Optional variant reference
+  quantity  Int
+  size      String
+  color     String?
+  createdAt DateTime @default(now())
+
+  @@unique([cartId, productId, variantId, size, color])
+  @@index([cartId])
+  @@index([variantId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating    Int      // 1-5 stars
+  title     String?
+  comment   String?  @db.Text
+  isVerified Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId])
+  @@index([productId])
+  @@index([rating])
+}
+
+model Category {
+  id          String @id @default(cuid())
+  name        String
+  nameEn      String
+  slug        String @unique
+  description String?
+  image       String?
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model Newsletter {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// Backorder System Models
+
+model WaitlistSubscription {
+  id          String   @id @default(cuid())
+  email       String
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId   String?
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  notifications RestockNotification[]
+
+  @@unique([email, productId, variantId])
+  @@index([productId])
+  @@index([variantId])
+  @@index([userId])
+  @@index([isActive])
+}
+
+model RestockNotification {
+  id                    String              @id @default(cuid())
+  waitlistSubscriptionId String
+  waitlistSubscription  WaitlistSubscription @relation(fields: [waitlistSubscriptionId], references: [id], onDelete: Cascade)
+  sentAt                DateTime            @default(now())
+  emailOpened           Boolean             @default(false)
+  linkClicked           Boolean             @default(false)
+  purchaseCompleted     Boolean             @default(false)
+
+  @@index([waitlistSubscriptionId])
+  @@index([sentAt])
+}
+
+model RestockSchedule {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId   String?
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  expectedDate DateTime?
+  actualDate  DateTime?
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([productId, variantId])
+  @@index([productId])
+  @@index([variantId])
+  @@index([expectedDate])
+}
